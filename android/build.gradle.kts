@@ -16,18 +16,23 @@ buildscript {
 
     }
 }
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+//
+//allprojects {
+//    repositories {
+//        google()
+//        mavenCentral(
+//    }
+//}
 
 plugins {
-    id("com.android.library")
-    id("kotlin-android")
+    id("com.android.library") // Or your AGP version
+    id("org.jetbrains.kotlin.android") // This replaces 'kotlin-android'
 }
+//plugins {
+//    id("com.android.library") version "8.1.0" // Or your AGP version
+//    id("org.jetbrains.kotlin.android") version "1.9.0" // This replaces 'kotlin-android'
+//}
+
 
 kotlin {
     compilerOptions {
@@ -37,7 +42,7 @@ kotlin {
 
 android {
     namespace = "io.flutter.plugins.videoplayer"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34
 
     defaultConfig {
         minSdk = 24
@@ -63,6 +68,7 @@ android {
         implementation("androidx.media3:media3-exoplayer-dash:${exoplayerVersion}")
         implementation("androidx.media3:media3-exoplayer-rtsp:${exoplayerVersion}")
         implementation("androidx.media3:media3-exoplayer-smoothstreaming:${exoplayerVersion}")
+        implementation("androidx.annotation:annotation:1.7.0")
         testImplementation("junit:junit:4.13.2")
         testImplementation("androidx.test:core:1.7.0")
         testImplementation("org.mockito:mockito-core:5.23.0")

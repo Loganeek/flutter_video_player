@@ -14,9 +14,10 @@ import io.flutter.FlutterInjector;
 import io.flutter.Log;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.BinaryMessenger;
-import io.flutter.plugins.videoplayer.platformview.PlatformVideoViewFactory;
 import io.flutter.plugins.videoplayer.platformview.PlatformViewVideoPlayer;
 import io.flutter.plugins.videoplayer.texture.TextureVideoPlayer;
+import io.flutter.plugins.videoplayer.platformview.vr.VrVideoViewFactory;
+import io.flutter.plugins.videoplayer.platformview.PlatformVideoViewFactory;
 import io.flutter.view.TextureRegistry;
 
 /** Android platform implementation of the VideoPlayerPlugin. */
@@ -46,7 +47,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
         .getPlatformViewRegistry()
         .registerViewFactory(
             "plugins.flutter.dev/video_player_android",
-            new PlatformVideoViewFactory(videoPlayers::get));
+            new VrVideoViewFactory(videoPlayers::get));
   }
 
   @Override

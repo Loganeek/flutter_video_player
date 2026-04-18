@@ -64,6 +64,10 @@ public class PlatformVideoViewFactory extends PlatformViewFactory {
     final VideoPlayer player = videoPlayerProvider.getVideoPlayer(playerId);
     final ExoPlayer exoPlayer = player.getExoPlayer();
 
-    return new PlatformVideoView(context, exoPlayer);
+    return buildPlatformView(context, exoPlayer);
+  }
+
+  public PlatformView buildPlatformView(@NonNull Context context, @NonNull ExoPlayer exoPlayer){
+      return PlatformVideoView.create(context, exoPlayer);
   }
 }

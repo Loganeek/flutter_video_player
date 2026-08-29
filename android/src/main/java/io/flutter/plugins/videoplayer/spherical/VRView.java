@@ -180,6 +180,21 @@ public final class VRView extends GLSurfaceView {
         this.callback = cb;
     }
 
+    /**
+     * Re-offers the existing GL {@link Surface} to the callback (ExoPlayer). Used when a later
+     * Platform View (Chewie fullscreen) is disposed and this view should receive frames again.
+     */
+    public void offerExistingSurface() {
+        mainHandler.post(
+                () -> {
+                    Surface existing = surface;
+                    SurfaceReadyCallback cb = callback;
+                    if (cb != null && existing != null && existing.isValid()) {
+                        cb.onSurfaceReady(existing);
+                    }
+                });
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
@@ -275,6 +290,7 @@ public final class VRView extends GLSurfaceView {
             float aspect = (float) width / height;
             float fovY = calculateFieldOfViewInYDirection(aspect);
             Matrix.perspectiveM(projectionMatrix, 0, fovY, aspect, Z_NEAR, Z_FAR);
+            orientationListener.setViewportSize(width, height);
         }
 
 

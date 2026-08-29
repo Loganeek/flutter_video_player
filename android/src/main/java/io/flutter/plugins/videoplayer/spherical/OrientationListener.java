@@ -48,10 +48,36 @@ import androidx.media3.common.util.UnstableApi;
   private final Display display;
   private final Listener[] listeners;
   private boolean recenterMatrixComputed;
+  private volatile int viewportWidth;
+  private volatile int viewportHeight;
 
   public OrientationListener(Display display, Listener... listeners) {
     this.display = display;
     this.listeners = listeners;
+  }
+
+  /**
+   * GL surface size from {@code onSurfaceChanged}. Inline VR is a 16:9 letterbox (width &gt;
+   * height) while Display stays portrait; fullscreen portrait is a tall surface. Only the former
+   * needs extra yaw.
+   */
+  public void setViewportSize(int width, int height) {
+    viewportWidth = width;
+    viewportHeight = height;
+  }
+
+  /**
+   * Phone upright but the GL surface is landscape-shaped (Flutter {@code AspectRatio(16/9)}).
+   * Must be applied <b>after</b> yaw recenter, otherwise {@link
+   * FrameRotationQueue#computeRecenterMatrix} absorbs the offset.
+   */
+  static boolean needsLetterboxedPortraitYaw(int displayRotation, int width, int height) {
+    if (width <= 0 || height <= 0) {
+      return false;
+    }
+    final boolean displayPortrait =
+        displayRotation == Surface.ROTATION_0 || displayRotation == Surface.ROTATION_180;
+    return displayPortrait && width > height;
   }
 
   @Override
@@ -63,10 +89,11 @@ import androidx.media3.common.util.UnstableApi;
     float roll = extractRoll(deviceOrientationMatrix4x4);
     // Rotation vector sensor assumes Y is parallel to the ground.
     rotateYtoSky(deviceOrientationMatrix4x4);
-    // Portrait -90° yaw is baked only into the *initial* recenter baseline (below),
-    // not applied every frame — otherwise portrait↔landscape toggles the offset and the
-    // view jumps (regression vs stock ExoPlayer continuous rotateAroundZ).
-    recenter(deviceOrientationMatrix4x4, displayRotation);
+    recenter(deviceOrientationMatrix4x4);
+    // After recenter: letterboxed portrait is still a quarter-turn off mesh center (left/right).
+    if (needsLetterboxedPortraitYaw(displayRotation, viewportWidth, viewportHeight)) {
+      Matrix.rotateM(deviceOrientationMatrix4x4, 0, -90, 0, 1, 0);
+    }
     notifyListeners(deviceOrientationMatrix4x4, roll);
   }
 
@@ -81,13 +108,8 @@ import androidx.media3.common.util.UnstableApi;
     }
   }
 
-  private void recenter(float[] matrix, int displayRotation) {
+  private void recenter(float[] matrix) {
     if (!recenterMatrixComputed) {
-      // If playback starts upright, fold portrait yaw into the sample used for recenter so
-      // "forward" is mesh-center; later display rotations keep using the same baseline.
-      if (displayRotation == Surface.ROTATION_0 || displayRotation == Surface.ROTATION_180) {
-        Matrix.rotateM(matrix, 0, -90, 0, 1, 0);
-      }
       FrameRotationQueue.computeRecenterMatrix(recenterMatrix4x4, matrix);
       recenterMatrixComputed = true;
     }

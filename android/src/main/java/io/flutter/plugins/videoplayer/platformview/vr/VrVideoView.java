@@ -13,6 +13,7 @@ import androidx.media3.exoplayer.ExoPlayer;
 
 import io.flutter.plugins.videoplayer.platformview.PlatformVideoView;
 import io.flutter.plugins.videoplayer.spherical.VRView;
+import io.flutter.plugins.videoplayer.spherical.VrViewRegistry;
 
 /**
  * A class used to create a native video view that can be embedded in a Flutter app. It wraps an
@@ -20,8 +21,13 @@ import io.flutter.plugins.videoplayer.spherical.VRView;
  */
 @UnstableApi
 public final class VrVideoView extends PlatformVideoView<VRView> {
-    private VrVideoView(@NonNull VRView vrView) {
+    private final long playerId;
+    @NonNull private final ExoPlayer exoPlayer;
+
+    private VrVideoView(@NonNull VRView vrView, long playerId, @NonNull ExoPlayer exoPlayer) {
         super(vrView);
+        this.playerId = playerId;
+        this.exoPlayer = exoPlayer;
     }
 
     /** Exposed for registry registration from the view factory. */
@@ -30,13 +36,17 @@ public final class VrVideoView extends PlatformVideoView<VRView> {
         return getSurfaceView();
     }
 
-    public static VrVideoView createVrView(@NonNull Context context, @NonNull ExoPlayer exoPlayer) {
+    public static VrVideoView createVrView(
+            @NonNull Context context, @NonNull ExoPlayer exoPlayer, long playerId) {
         var view = new VRView(context);
         view.setDefaultStereoMode(C.STEREO_MODE_LEFT_RIGHT);
         setupSurfaceWithCallback(view, exoPlayer);
-        return new VrVideoView(view);
+        return new VrVideoView(view, playerId, exoPlayer);
     }
 
+    public static VrVideoView createVrView(@NonNull Context context, @NonNull ExoPlayer exoPlayer) {
+        return createVrView(context, exoPlayer, /* playerId= */ -1L);
+    }
 
     private static void setupSurfaceWithCallback(VRView view, @NonNull ExoPlayer exoPlayer) {
         exoPlayer.setVideoFrameMetadataListener(view.getVideoFrameMetadataListener());
@@ -45,9 +55,25 @@ public final class VrVideoView extends PlatformVideoView<VRView> {
 
     /**
      * Disposes of the resources used by this PlatformView.
+     *
+     * <p>Chewie fullscreen mounts a second view on the same player. Rebind ExoPlayer to the
+     * remaining view so inline VR keeps receiving frames.
      */
     @Override
     public void dispose() {
+        VRView self = getVrSurface();
+        self.setSurfaceReadyCallback(null);
+        if (playerId >= 0) {
+            VrViewRegistry.unregister(playerId, self);
+        }
+        VRView remaining = playerId >= 0 ? VrViewRegistry.get(playerId) : null;
+        if (remaining != null) {
+            exoPlayer.setVideoFrameMetadataListener(remaining.getVideoFrameMetadataListener());
+            remaining.offerExistingSurface();
+        } else {
+            exoPlayer.setVideoSurface(null);
+            exoPlayer.setVideoFrameMetadataListener(null);
+        }
         getSurfaceView().onPause();
         super.dispose();
     }

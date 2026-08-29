@@ -37,7 +37,7 @@ public class VrVideoViewFactory extends PlatformVideoViewFactory {
     final Long playerId = params.getPlayerId();
     final VideoPlayer player = videoPlayerProvider.getVideoPlayer(playerId);
     final ExoPlayer exoPlayer = player.getExoPlayer();
-    final VrVideoView view = VrVideoView.createVrView(context, exoPlayer);
+    final VrVideoView view = VrVideoView.createVrView(context, exoPlayer, playerId);
     VrViewRegistry.register(playerId, view.getVrSurface());
     return view;
   }

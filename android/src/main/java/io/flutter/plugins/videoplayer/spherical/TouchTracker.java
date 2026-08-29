@@ -86,11 +86,6 @@ import androidx.media3.common.util.UnstableApi;
    * @return true if we handled the event
    */
   @Override
-  public boolean onTouch(View v, MotionEvent event) {
-    return gestureDetector.onTouchEvent(event);
-  }
-
-  @Override
   public boolean onDown(MotionEvent e) {
     // Initialize drag gesture.
     previousTouchPointPx.set(e.getX(), e.getY());
@@ -133,5 +128,29 @@ import androidx.media3.common.util.UnstableApi;
   public void onOrientationChange(float[] deviceOrientationMatrix, float roll) {
     // We compensate for roll by rotating in the opposite direction.
     this.roll = -roll;
+  }
+
+  /** Clears accumulated yaw/pitch offsets and notifies listeners. */
+  public void resetOffsets() {
+    accumulatedTouchOffsetDegrees.set(0f, 0f);
+    listener.onScrollChange(accumulatedTouchOffsetDegrees);
+  }
+
+  private boolean enabled = true;
+
+  public void setEnabled(boolean enabled) {
+    this.enabled = enabled;
+  }
+
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  @Override
+  public boolean onTouch(View v, MotionEvent event) {
+    if (!enabled) {
+      return false;
+    }
+    return gestureDetector.onTouchEvent(event);
   }
 }

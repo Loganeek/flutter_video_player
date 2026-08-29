@@ -23,6 +23,13 @@ public final class VrVideoView extends PlatformVideoView<VRView> {
     private VrVideoView(@NonNull VRView vrView) {
         super(vrView);
     }
+
+    /** Exposed for registry registration from the view factory. */
+    @NonNull
+    public VRView getVrSurface() {
+        return getSurfaceView();
+    }
+
     public static VrVideoView createVrView(@NonNull Context context, @NonNull ExoPlayer exoPlayer) {
         var view = new VRView(context);
         view.setDefaultStereoMode(C.STEREO_MODE_LEFT_RIGHT);

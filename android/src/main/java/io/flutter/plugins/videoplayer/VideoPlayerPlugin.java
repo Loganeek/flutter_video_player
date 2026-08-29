@@ -14,19 +14,25 @@ import io.flutter.FlutterInjector;
 import io.flutter.Log;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.BinaryMessenger;
+import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugins.videoplayer.platformview.PlatformViewVideoPlayer;
 import io.flutter.plugins.videoplayer.texture.TextureVideoPlayer;
 import io.flutter.plugins.videoplayer.platformview.vr.VrVideoViewFactory;
 import io.flutter.plugins.videoplayer.platformview.PlatformVideoViewFactory;
+import io.flutter.plugins.videoplayer.spherical.VRView;
+import io.flutter.plugins.videoplayer.spherical.VrViewRegistry;
 import io.flutter.view.TextureRegistry;
 
 /** Android platform implementation of the VideoPlayerPlugin. */
 public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   private static final String TAG = "VideoPlayerPlugin";
+  private static final String VR_CONTROLS_CHANNEL =
+      "dev.flutter.video_player_android/vr_controls";
   private final LongSparseArray<VideoPlayer> videoPlayers = new LongSparseArray<>();
   private FlutterState flutterState;
   private final VideoPlayerOptions sharedOptions = new VideoPlayerOptions();
   private long nextPlayerIdentifier = 1;
+  @Nullable private MethodChannel vrControlsChannel;
 
   /** Register this with the v2 embedding for the plugin to respond to lifecycle callbacks. */
   public VideoPlayerPlugin() {}
@@ -43,6 +49,9 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
             binding.getTextureRegistry());
     flutterState.startListening(this, binding.getBinaryMessenger());
 
+    vrControlsChannel = new MethodChannel(binding.getBinaryMessenger(), VR_CONTROLS_CHANNEL);
+    vrControlsChannel.setMethodCallHandler(this::onVrControlsMethodCall);
+
     binding
         .getPlatformViewRegistry()
         .registerViewFactory(
@@ -55,9 +64,66 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     if (flutterState == null) {
       Log.wtf(TAG, "Detached from the engine before registering to it.");
     }
+    if (vrControlsChannel != null) {
+      vrControlsChannel.setMethodCallHandler(null);
+      vrControlsChannel = null;
+    }
     flutterState.stopListening(binding.getBinaryMessenger());
     flutterState = null;
     onDestroy();
+  }
+
+  private void onVrControlsMethodCall(
+      @NonNull io.flutter.plugin.common.MethodCall call,
+      @NonNull MethodChannel.Result result) {
+    final Object rawId = call.argument("playerId");
+    if (!(rawId instanceof Number)) {
+      result.error("invalid_args", "playerId required", null);
+      return;
+    }
+    final long playerId = ((Number) rawId).longValue();
+    final VRView view = VrViewRegistry.get(playerId);
+    if (view == null) {
+      result.error("no_vr_view", "No VR view for playerId " + playerId, null);
+      return;
+    }
+    switch (call.method) {
+      case "setSensorRotation":
+        {
+          Boolean enabled = call.argument("enabled");
+          if (enabled == null) {
+            result.error("invalid_args", "enabled required", null);
+            return;
+          }
+          view.setUseSensorRotation(enabled);
+          result.success(null);
+          break;
+        }
+      case "setTouchEnabled":
+        {
+          Boolean enabled = call.argument("enabled");
+          if (enabled == null) {
+            result.error("invalid_args", "enabled required", null);
+            return;
+          }
+          view.setTouchEnabled(enabled);
+          result.success(null);
+          break;
+        }
+      case "resetViewOrientation":
+        view.resetViewOrientation();
+        result.success(null);
+        break;
+      case "getSensorRotation":
+        result.success(view.getUseSensorRotation());
+        break;
+      case "getTouchEnabled":
+        result.success(view.isTouchEnabled());
+        break;
+      default:
+        result.notImplemented();
+        break;
+    }
   }
 
   private void disposeAllPlayers() {
@@ -179,6 +245,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     VideoPlayer player = getPlayer(playerId);
     player.dispose();
     videoPlayers.remove(playerId);
+    VrViewRegistry.unregister(playerId);
   }
 
   @Override

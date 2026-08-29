@@ -58,11 +58,15 @@ import androidx.media3.common.util.UnstableApi;
   @BinderThread
   public void onSensorChanged(SensorEvent event) {
     SensorManager.getRotationMatrixFromVector(deviceOrientationMatrix4x4, event.values);
-    rotateAroundZ(deviceOrientationMatrix4x4, display.getRotation());
+    final int displayRotation = display.getRotation();
+    rotateAroundZ(deviceOrientationMatrix4x4, displayRotation);
     float roll = extractRoll(deviceOrientationMatrix4x4);
     // Rotation vector sensor assumes Y is parallel to the ground.
     rotateYtoSky(deviceOrientationMatrix4x4);
-    recenter(deviceOrientationMatrix4x4);
+    // Portrait -90° yaw is baked only into the *initial* recenter baseline (below),
+    // not applied every frame — otherwise portrait↔landscape toggles the offset and the
+    // view jumps (regression vs stock ExoPlayer continuous rotateAroundZ).
+    recenter(deviceOrientationMatrix4x4, displayRotation);
     notifyListeners(deviceOrientationMatrix4x4, roll);
   }
 
@@ -77,8 +81,13 @@ import androidx.media3.common.util.UnstableApi;
     }
   }
 
-  private void recenter(float[] matrix) {
+  private void recenter(float[] matrix, int displayRotation) {
     if (!recenterMatrixComputed) {
+      // If playback starts upright, fold portrait yaw into the sample used for recenter so
+      // "forward" is mesh-center; later display rotations keep using the same baseline.
+      if (displayRotation == Surface.ROTATION_0 || displayRotation == Surface.ROTATION_180) {
+        Matrix.rotateM(matrix, 0, -90, 0, 1, 0);
+      }
       FrameRotationQueue.computeRecenterMatrix(recenterMatrix4x4, matrix);
       recenterMatrixComputed = true;
     }
@@ -122,5 +131,10 @@ import androidx.media3.common.util.UnstableApi;
 
   private static void rotateYtoSky(float[] matrix) {
     Matrix.rotateM(matrix, 0, 90, 1, 0, 0);
+  }
+
+  /** Clears yaw recenter so the next sensor sample becomes the new forward direction. */
+  public void resetRecenter() {
+    recenterMatrixComputed = false;
   }
 }

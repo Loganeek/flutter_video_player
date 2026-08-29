@@ -154,6 +154,28 @@ public final class VRView extends GLSurfaceView {
         updateOrientationListenerRegistration();
     }
 
+    public boolean getUseSensorRotation() {
+        return useSensorRotation;
+    }
+
+    /** Enables or disables touch-drag look-around. */
+    public void setTouchEnabled(boolean enabled) {
+        touchTracker.setEnabled(enabled);
+    }
+
+    public boolean isTouchEnabled() {
+        return touchTracker.isEnabled();
+    }
+
+    /**
+     * Resets touch yaw/pitch offsets and recenters gyro yaw to the current device heading
+     * (初始视角).
+     */
+    public void resetViewOrientation() {
+        touchTracker.resetOffsets();
+        orientationListener.resetRecenter();
+    }
+
     public void setSurfaceReadyCallback(SurfaceReadyCallback cb) {
         this.callback = cb;
     }
